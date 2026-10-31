@@ -1,0 +1,55 @@
+@model LoginViewModel
+@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Log in";
+
+    var emailField = new FormFieldModel
+    {
+        Name = nameof(Model.Email),
+        Label = "Email address",
+        InputType = "email",
+        Value = Model.Email,
+        Required = true,
+        Help = FieldHelp.Email,
+        Autocomplete = "username",
+        Icon = "mail"
+    };
+
+    var passwordField = new FormFieldModel
+    {
+        Name = nameof(Model.Password),
+        Label = "Password",
+        InputType = "password",
+        Required = true,
+        Help = FieldHelp.LoginPassword,
+        Autocomplete = "current-password",
+        Icon = "lock"
+    };
+}
+
+<div class="auth-card">
+    <h1>Welcome back</h1>
+    <p class="auth-sub">Log in to continue to your simulator workspace.</p>
+
+    <form asp-controller="Account" asp-action="Login" method="post" novalidate data-auth-form>
+        <partial name="_FormErrors" />
+
+        <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
+
+        <partial name="_FormField" model="emailField" />
+        <partial name="_FormField" model="passwordField" />
+
+        <div class="form-check">
+            <input type="hidden" name="RememberMe" value="false" />
+            <input type="checkbox" id="RememberMe" name="RememberMe" value="true" checked="@Model.RememberMe" />
+            <label for="RememberMe">Keep me logged in on this computer</label>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" data-submit>
+            <span class="btn-label">Log in</span>
+            <span class="spinner" aria-hidden="true"></span>
+        </button>
+    </form>
+
+    <p class="auth-switch">New to CIRS? <a asp-action="SignUp">Create an account</a></p>
+</div>

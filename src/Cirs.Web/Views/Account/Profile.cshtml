@@ -1,0 +1,22 @@
+@model ProfileViewModel
+@{
+    ViewData["Title"] = "Profile";
+}
+
+<section class="card">
+    <h1>Your profile</h1>
+    <p>This page needs a login. It reads your details from the login cookie and a small amount of state from the session.</p>
+
+    <h2>From the login cookie</h2>
+    <dl class="details">
+        <dt>Name</dt><dd>@Model.FullName</dd>
+        <dt>Email</dt><dd>@Model.Email</dd>
+        <dt>Role</dt><dd>@Model.Role</dd>
+    </dl>
+
+    <h2>From the session</h2>
+    <dl class="details">
+        <dt>Logged in at</dt><dd>@Model.SessionLoginTime</dd>
+        <dt>Profile page visits this session</dt><dd>@Model.ProfileVisits</dd>
+    </dl>
+</section>

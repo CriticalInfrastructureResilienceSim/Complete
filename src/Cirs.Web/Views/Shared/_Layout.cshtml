@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - CIRS</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" asp-controller="Home" asp-action="Index">
+                <span class="brand-logo">@Icons.Svg("network")</span>
+                <span>CIRS</span>
+            </a>
+            <span class="tagline">Critical Infrastructure Resilience Simulator</span>
+            <nav class="main-nav" aria-label="Main menu">
+                <a asp-controller="Home" asp-action="Index">Home</a>
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <a asp-controller="Account" asp-action="Profile">Profile</a>
+                    <span class="nav-user">@User.Identity.Name</span>
+                    <form asp-controller="Account" asp-action="Logout" method="post" class="inline-form">
+                        <button type="submit" class="nav-button">Log out</button>
+                    </form>
+                }
+                else
+                {
+                    <a asp-controller="Account" asp-action="Login">Log in</a>
+                    <a class="nav-cta" asp-controller="Account" asp-action="SignUp">Sign up</a>
+                }
+            </nav>
+        </div>
+    </header>
+
+    @if (ViewData["FullWidth"] is true)
+    {
+        @RenderBody()
+    }
+    else
+    {
+        <main class="content">
+            @if (TempData["Success"] is string successMessage)
+            {
+                <div class="alert alert-success" role="status">
+                    <span class="alert-icon">@Icons.Svg("check")</span>
+                    <div><p><strong>Success:</strong> @successMessage</p></div>
+                </div>
+            }
+
+            @RenderBody()
+        </main>
+    }
+
+    <footer class="site-footer">
+        <p>CIRS is a university Data Structures and Algorithms project. All data is synthetic and the results come from our model rules, not real engineering.</p>
+    </footer>
+
+    <script src="~/js/site.js" asp-append-version="true"></script>
+</body>
+</html>

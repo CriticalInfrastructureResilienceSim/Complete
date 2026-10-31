@@ -1,0 +1,72 @@
+@model SignUpViewModel
+@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Sign up";
+
+    var fullNameField = new FormFieldModel
+    {
+        Name = nameof(Model.FullName),
+        Label = "Full name",
+        Value = Model.FullName,
+        Required = true,
+        Help = FieldHelp.FullName,
+        Autocomplete = "name",
+        Icon = "user"
+    };
+
+    var emailField = new FormFieldModel
+    {
+        Name = nameof(Model.Email),
+        Label = "Email address",
+        InputType = "email",
+        Value = Model.Email,
+        Required = true,
+        Help = FieldHelp.Email,
+        Autocomplete = "email",
+        Icon = "mail"
+    };
+
+    var passwordField = new FormFieldModel
+    {
+        Name = nameof(Model.Password),
+        Label = "Password",
+        InputType = "password",
+        Required = true,
+        Help = FieldHelp.SignUpPassword,
+        Autocomplete = "new-password",
+        Icon = "lock",
+        ShowStrength = true
+    };
+
+    var confirmField = new FormFieldModel
+    {
+        Name = nameof(Model.ConfirmPassword),
+        Label = "Confirm password",
+        InputType = "password",
+        Required = true,
+        Help = FieldHelp.ConfirmPassword,
+        Autocomplete = "new-password",
+        Icon = "lock"
+    };
+}
+
+<div class="auth-card">
+    <h1>Create your account</h1>
+    <p class="auth-sub">It takes less than a minute. Fields marked <span class="required">*</span> are required.</p>
+
+    <form asp-controller="Account" asp-action="SignUp" method="post" novalidate data-auth-form>
+        <partial name="_FormErrors" />
+
+        <partial name="_FormField" model="fullNameField" />
+        <partial name="_FormField" model="emailField" />
+        <partial name="_FormField" model="passwordField" />
+        <partial name="_FormField" model="confirmField" />
+
+        <button type="submit" class="btn btn-primary btn-block" data-submit>
+            <span class="btn-label">Create account</span>
+            <span class="spinner" aria-hidden="true"></span>
+        </button>
+    </form>
+
+    <p class="auth-switch">Already have an account? <a asp-action="Login">Log in</a></p>
+</div>

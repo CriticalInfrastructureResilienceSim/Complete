@@ -1,0 +1,25 @@
+@{
+    // Summary box at the top of a form: form-level messages first, then a count of field problems.
+    ModelStateEntry? formEntry = null;
+    ViewData.ModelState.TryGetValue(string.Empty, out formEntry);
+    var formErrors = formEntry?.Errors ?? new ModelErrorCollection();
+    var fieldErrorCount = ViewData.ModelState
+        .Where(pair => pair.Key != string.Empty)
+        .Sum(pair => pair.Value?.Errors.Count ?? 0);
+}
+@if (formErrors.Count > 0 || fieldErrorCount > 0)
+{
+    <div class="alert alert-error" role="alert">
+        <span class="alert-icon">@Icons.Svg("alert")</span>
+        <div>
+            @foreach (var error in formErrors)
+            {
+                <p><strong>Error:</strong> @error.ErrorMessage</p>
+            }
+            @if (fieldErrorCount > 0)
+            {
+                <p><strong>Error:</strong> Please fix the @fieldErrorCount problem(s) marked below.</p>
+            }
+        </div>
+    </div>
+}

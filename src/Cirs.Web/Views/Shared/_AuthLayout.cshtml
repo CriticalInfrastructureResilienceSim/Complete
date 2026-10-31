@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+    <title>@ViewData["Title"] - CIRS</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="auth-body">
+    <div class="auth-shell">
+
+        <aside class="auth-brand">
+            <a class="brand-mark" asp-controller="Home" asp-action="Index">
+                <span class="brand-logo">@Icons.Svg("network")</span>
+                <span>CIRS</span>
+            </a>
+
+            <div class="brand-copy">
+                <p class="eyebrow">Critical Infrastructure Resilience Simulator</p>
+                <h2>Find the weak link before it fails.</h2>
+                <p class="lead">Model power, water, healthcare and telecom networks, fail one component and watch how the failure spreads.</p>
+
+                <ul class="brand-points">
+                    <li><span>@Icons.Svg("target")</span> Single points of failure, ranked</li>
+                    <li><span>@Icons.Svg("route")</span> Recovery options compared side by side</li>
+                    <li><span>@Icons.Svg("layers")</span> Redesign advice for fragile networks</li>
+                </ul>
+            </div>
+
+            <svg class="brand-art" viewBox="0 0 520 220" aria-hidden="true" focusable="false">
+                <g class="art-edges">
+                    <path d="M70 110 L190 50" />
+                    <path d="M70 110 L190 170" />
+                    <path d="M190 50 L330 50" />
+                    <path d="M190 170 L330 170" />
+                    <path d="M330 50 L450 110" />
+                    <path d="M330 170 L450 110" class="art-edge-dead" />
+                    <path d="M190 50 L190 170" class="art-edge-dead" />
+                </g>
+                <g class="art-nodes">
+                    <circle cx="70" cy="110" r="20" /><circle cx="190" cy="50" r="20" />
+                    <circle cx="190" cy="170" r="20" class="art-node-dead" /><circle cx="330" cy="50" r="20" />
+                    <circle cx="330" cy="170" r="20" class="art-node-dead" /><circle cx="450" cy="110" r="20" />
+                </g>
+                <g class="art-labels">
+                    <text x="70" y="150" text-anchor="middle">Source</text>
+                    <text x="190" y="22" text-anchor="middle">Substation</text>
+                    <text x="190" y="208" text-anchor="middle">Pump · DOWN</text>
+                    <text x="330" y="22" text-anchor="middle">Clinic</text>
+                    <text x="330" y="208" text-anchor="middle">Tower · DOWN</text>
+                    <text x="450" y="150" text-anchor="middle">Hospital</text>
+                </g>
+            </svg>
+
+            <p class="brand-foot">University Data Structures and Algorithms project. All data is synthetic.</p>
+        </aside>
+
+        <section class="auth-panel">
+            <header class="auth-mobile-brand">
+                <a class="brand-mark" asp-controller="Home" asp-action="Index">
+                    <span class="brand-logo">@Icons.Svg("network")</span>
+                    <span>CIRS</span>
+                </a>
+            </header>
+
+            <main class="auth-main">
+                @if (TempData["Success"] is string successMessage)
+                {
+                    <div class="alert alert-success" role="status">
+                        <span class="alert-icon">@Icons.Svg("check")</span>
+                        <div><p><strong>Success:</strong> @successMessage</p></div>
+                    </div>
+                }
+
+                @RenderBody()
+            </main>
+
+            <footer class="auth-foot">
+                <p>Results come from our model rules, not real engineering.</p>
+            </footer>
+        </section>
+
+    </div>
+
+    <script src="~/js/site.js" asp-append-version="true"></script>
+</body>
+</html>

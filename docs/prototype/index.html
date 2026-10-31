@@ -1,0 +1,797 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Town Resilience Sandbox</title>
+<style>
+:root{
+  --bg:#12161c; --panel:#1a2029; --panel2:#222a36; --line:#2e394a; --text:#e6ebf2; --muted:#8a97aa;
+  --accent:#4cc2ff; --good:#4ade80; --warn:#fbbf24; --bad:#f87171;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:13px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+#app{display:grid;grid-template-columns:250px 1fr 290px;grid-template-rows:auto 1fr;height:100vh}
+header{grid-column:1/4;display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{font-size:15px;margin:0 8px 0 0;letter-spacing:.3px}
+.grp{display:flex;gap:4px;align-items:center;padding-right:10px;margin-right:2px;border-right:1px solid var(--line)}
+.grp:last-child{border-right:0}
+.grp .lbl{color:var(--muted);font-size:11px;margin-right:2px}
+button,.btn{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:5px 9px;font:inherit;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.on{background:#17405a;border-color:var(--accent)}
+button.danger:hover{border-color:var(--bad)}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);cursor:pointer;user-select:none}
+.chip i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.chip.on{border-color:var(--text);background:#2c3646}
+.chip.hid{opacity:.4}
+#palette{background:var(--panel);border-right:1px solid var(--line);overflow:auto;padding:8px}
+#palette h3{margin:10px 4px 4px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+#palette h3:first-child{margin-top:2px}
+.item{display:flex;gap:8px;align-items:center;padding:6px;border-radius:8px;border:1px solid transparent;cursor:grab;user-select:none;touch-action:none}
+.item:hover{background:var(--panel2);border-color:var(--line)}
+.item.sel{background:#17405a;border-color:var(--accent)}
+.item .ic{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;font-size:19px;flex:none}
+.item b{display:block;font-weight:600}
+.item small{color:var(--muted);font-size:11px}
+#stage{position:relative;display:grid;place-items:center;overflow:hidden;background:#0d1015}
+canvas{display:block;border-radius:6px;box-shadow:0 0 0 1px var(--line);touch-action:none}
+#hint{position:absolute;left:10px;bottom:8px;color:var(--muted);font-size:12px;background:rgba(10,12,16,.7);padding:4px 8px;border-radius:6px;pointer-events:none;max-width:70%}
+#toast{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:#3b1d1d;border:1px solid var(--bad);color:#ffd6d6;padding:6px 12px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:5}
+#toast.show{opacity:1}
+#tip{position:absolute;pointer-events:none;background:rgba(10,12,16,.92);border:1px solid var(--line);padding:5px 8px;border-radius:6px;font-size:12px;display:none;z-index:4;white-space:nowrap}
+#side{background:var(--panel);border-left:1px solid var(--line);overflow:auto;padding:10px}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px 10px;margin-bottom:10px}
+.card h4{margin:0 0 6px;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted)}
+.row{display:flex;justify-content:space-between;gap:8px;margin:3px 0}
+.bar{height:7px;border-radius:4px;background:#0f141b;overflow:hidden;margin-top:2px}
+.bar>div{height:100%;border-radius:4px;transition:width .25s}
+.big{font-size:22px;font-weight:700}
+#log{font-size:12px;color:#c3ccd9;max-height:170px;overflow:auto}
+#log div{padding:2px 0;border-bottom:1px dashed #2a3443}
+#log .bad{color:var(--bad)} #log .good{color:var(--good)} #log .warn{color:var(--warn)}
+.legend span{display:inline-flex;align-items:center;gap:4px;margin-right:8px}
+@media (max-width:1100px){#app{grid-template-columns:200px 1fr 240px}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>🏙️ Town Resilience Sandbox</h1>
+    <div class="grp"><span class="lbl">Tool</span>
+      <button id="t-select" class="on" title="V">Select / Move</button>
+      <button id="t-wire" title="W">Wire</button>
+      <button id="t-cut" title="C">Cut</button>
+      <button id="t-delete" title="X">Delete</button>
+    </div>
+    <div class="grp"><span class="lbl">Wire type</span><span id="wirechips"></span></div>
+    <div class="grp"><span class="lbl">Disaster</span>
+      <button id="d-quake" class="danger">🌋 Earthquake</button>
+      <button id="d-storm" class="danger">⛈️ Storm</button>
+      <button id="d-flood" class="danger">🌊 Flood</button>
+      <button id="d-repair">🛠️ Repair all</button>
+    </div>
+    <div class="grp"><span class="lbl">Sim</span>
+      <button id="b-pause" title="P">⏸ Pause</button>
+      <button id="b-speed">1×</button>
+    </div>
+    <div class="grp"><span class="lbl">City</span>
+      <button id="b-reset">Reload demo</button>
+      <button id="b-clear">Empty map</button>
+      <button id="b-export">Export JSON</button>
+      <button id="b-import">Import JSON</button>
+      <input id="file" type="file" accept=".json,application/json" hidden>
+    </div>
+  </header>
+
+  <aside id="palette"></aside>
+
+  <main id="stage">
+    <canvas id="cv"></canvas>
+    <div id="hint"></div>
+    <div id="toast"></div>
+    <div id="tip"></div>
+  </main>
+
+  <aside id="side">
+    <div class="card" id="c-clock"></div>
+    <div class="card" id="c-city"></div>
+    <div class="card" id="c-grid"></div>
+    <div class="card" id="c-cover"></div>
+    <div class="card" id="c-insp"><h4>Inspector</h4><div class="muted" style="color:var(--muted)">Click a building to inspect it.</div></div>
+    <div class="card"><h4>Event log</h4><div id="log"></div></div>
+    <div class="card legend"><h4>Legend</h4>
+      <div><span><i style="color:#4ade80">●</i> OK</span><span><i style="color:#fbbf24">●</i> Degraded</span><span><i style="color:#f87171">●</i> Failed</span></div>
+      <div style="margin-top:4px;color:var(--muted)">Small dots on a building = missing inputs. Wires run underground (drawn beneath buildings). Moving dashes = live flow.</div>
+    </div>
+  </aside>
+</div>
+
+<script>
+/* =====================================================================
+   ENGINE  (no DOM access; this block is what you would port to C#)
+   ===================================================================== */
+// ==== ENGINE START ====
+const GW = 40, GH = 26;
+const RESKEYS = ['power', 'water', 'sewage', 'gas'];
+const RES = {
+  power:  { label: 'Power',  color: '#ffd23f', icon: '⚡', unit: 'MW' },
+  water:  { label: 'Water',  color: '#43a6ff', icon: '💧', unit: 'ML' },
+  sewage: { label: 'Sewage', color: '#b98a55', icon: '♻', unit: 'm³' },
+  gas:    { label: 'Gas',    color: '#ff7f3f', icon: '🔥', unit: 'm³' }
+};
+const CATS = {
+  util:   { label: 'Utilities',             color: '#566579' },
+  res:    { label: 'Residential',           color: '#468f5c' },
+  health: { label: 'Health & emergency',    color: '#c9485f' },
+  edu:    { label: 'Education & government',color: '#6f58bd' },
+  com:    { label: 'Commercial',            color: '#b8921f' },
+  ind:    { label: 'Industry & farming',    color: '#85604a' },
+  pub:    { label: 'Public space',          color: '#2f9c8b' }
+};
+
+// needs  = hard inputs: service = min(received/needed)
+// takes  = sink capacity (sewage treatment); does not affect service
+// makes  = output at 100% service;   relay = pass-through capacity (substation, pipe junction)
+// cover  = coverage service type + radius in tiles;   repair = repair-speed bonus
+const DEFS = {};
+function D(key, cat, name, w, h, icon, o) { DEFS[key] = Object.assign({ key, cat, name, w, h, icon, needs: {}, takes: {}, makes: {}, relay: {}, priority: 3 }, o || {}); }
+
+// Utilities
+D('nuclear',   'util', 'Nuclear plant',          4, 4, '☢️', { needs:{water:40}, makes:{power:500}, priority:10 });
+D('gasplant',  'util', 'Gas power plant',        3, 3, '🔥', { needs:{gas:20},   makes:{power:200}, priority:9 });
+D('solar',     'util', 'Solar farm',             3, 3, '☀️', { makes:{power:60}, solar:true, priority:6 });
+D('substation','util', 'Substation',             1, 1, '🔌', { needs:{power:2},  relay:{power:400}, priority:9 });
+D('backupgen', 'util', 'Backup generator',       1, 1, '⚙️', { needs:{gas:3},    makes:{power:40}, priority:8 });
+D('battery',   'util', 'Battery bank',           2, 1, '🔋', { needs:{power:5},  relay:{power:150}, priority:5 });
+D('pump',      'util', 'Water pumping station',  2, 2, '🚰', { needs:{power:20}, makes:{water:260}, priority:10 });
+D('tower',     'util', 'Water tower',            1, 1, '🗼', { relay:{water:200}, priority:6 });
+D('treatment', 'util', 'Sewage treatment plant', 3, 3, '♻️', { needs:{power:10}, takes:{sewage:130}, priority:8 });
+D('gasdepot',  'util', 'Gas depot',              2, 2, '🛢️', { makes:{gas:150}, priority:8 });
+D('telecom',   'util', 'Telecom tower',          1, 1, '📡', { needs:{power:5}, cover:{type:'comms', r:12}, priority:6 });
+D('junction',  'util', 'Pipe junction (added)',  1, 1, '🔘', { relay:{water:400, sewage:400, gas:300}, priority:6 });
+// Residential
+D('house',     'res',  'House',                  2, 2, '🏠', { needs:{power:5, water:3},           makes:{sewage:3},  residents:4,  priority:5 });
+D('apartment', 'res',  'Apartment block',        3, 3, '🏢', { needs:{power:20, water:12, gas:5},  makes:{sewage:12}, residents:20, priority:5 });
+// Health & emergency
+D('hospital',  'health','Hospital',              4, 3, '🏥', { needs:{power:30, water:15}, makes:{sewage:10}, cover:{type:'health', r:10}, priority:10 });
+D('clinic',    'health','Clinic',                2, 2, '⚕️', { needs:{power:8, water:4},   makes:{sewage:3},  cover:{type:'health', r:6},  priority:8 });
+D('fire',      'health','Fire station',          3, 2, '🚒', { needs:{power:6, water:10},  cover:{type:'fire', r:9},   priority:8 });
+D('police',    'health','Police station',        3, 2, '👮', { needs:{power:8, water:3},   cover:{type:'safety', r:9}, priority:8 });
+D('emergency', 'health','Emergency control center',2,2,'🚨',{ needs:{power:10}, repair:1, priority:8 });
+// Education & government
+D('school',    'edu',  'School',                 3, 3, '🏫', { needs:{power:10, water:6},          makes:{sewage:6},  cover:{type:'education', r:8},  priority:5 });
+D('university','edu',  'University',             4, 4, '🎓', { needs:{power:30, water:15, gas:5},  makes:{sewage:15}, cover:{type:'education', r:14}, priority:4 });
+D('townhall',  'edu',  'Town hall',              3, 2, '🏛️', { needs:{power:8, water:3}, repair:1, priority:6 });
+D('library',   'edu',  'Library / community',    2, 2, '📚', { needs:{power:5, water:2}, cover:{type:'happiness', r:6}, priority:3 });
+// Commercial
+D('shop',      'com',  'Shop',                   2, 2, '🛒', { needs:{power:4, water:2},           makes:{sewage:2},  priority:3 });
+D('mall',      'com',  'Market / mall',          4, 3, '🏬', { needs:{power:25, water:10, gas:5},  makes:{sewage:10}, priority:3 });
+D('restaurant','com',  'Restaurant',             2, 2, '🍽️', { needs:{power:6, water:6, gas:6},    makes:{sewage:6},  priority:3 });
+D('office',    'com',  'Office',                 3, 2, '💼', { needs:{power:15, water:4},          makes:{sewage:4},  priority:3 });
+D('fuel',      'com',  'Fuel station',           2, 2, '⛽', { needs:{power:3, gas:5}, priority:3 });
+// Industry
+D('factory',   'ind',  'Factory',                4, 4, '🏭', { needs:{power:60, water:30, gas:20}, makes:{sewage:25}, priority:2 });
+D('farm',      'ind',  'Farm',                   4, 4, '🌾', { needs:{water:20}, priority:2 });
+D('warehouse', 'ind',  'Warehouse',              3, 2, '📦', { needs:{power:5}, priority:2 });
+// Public
+D('park',      'pub',  'Park',                   2, 2, '🌳', { cover:{type:'happiness', r:5}, priority:1 });
+D('toilet',    'pub',  'Public toilet',          1, 1, '🚻', { needs:{water:2}, makes:{sewage:2}, priority:1 });
+
+function createWorld() {
+  return { buildings: new Map(), wires: [], occ: new Array(GW * GH).fill(0), nextB: 1, nextW: 1, time: 0, stats: null };
+}
+function canPlace(w, def, x, y, ignoreId) {
+  if (x < 0 || y < 0 || x + def.w > GW || y + def.h > GH) return false;
+  for (let j = y; j < y + def.h; j++) for (let i = x; i < x + def.w; i++) {
+    const o = w.occ[j * GW + i];
+    if (o !== 0 && o !== ignoreId) return false;
+  }
+  return true;
+}
+function stamp(w, b, val) {
+  for (let j = b.y; j < b.y + b.def.h; j++) for (let i = b.x; i < b.x + b.def.w; i++) w.occ[j * GW + i] = val;
+}
+function addBuilding(w, key, x, y) {
+  const def = DEFS[key];
+  if (!def || !canPlace(w, def, x, y, 0)) return null;
+  const b = { id: w.nextB++, key, def, x, y, down: 0, service: 1, disp: 1, ratio: {}, overflow: false };
+  w.buildings.set(b.id, b); stamp(w, b, b.id);
+  return b;
+}
+function moveBuilding(w, b, x, y) {
+  if (!canPlace(w, b.def, x, y, b.id)) return false;
+  stamp(w, b, 0); b.x = x; b.y = y; stamp(w, b, b.id);
+  return true;
+}
+function removeBuilding(w, id) {
+  const b = w.buildings.get(id); if (!b) return;
+  stamp(w, b, 0); w.buildings.delete(id);
+  w.wires = w.wires.filter(x => x.from !== id && x.to !== id);
+}
+function centerOf(b) { return { x: b.x + b.def.w / 2, y: b.y + b.def.h / 2 }; }
+function canSupply(def, r) { return !!((def.makes && def.makes[r]) || (def.relay && def.relay[r])); }
+function canAccept(def, r) { return !!((def.needs && def.needs[r]) || (def.takes && def.takes[r]) || (def.relay && def.relay[r])); }
+
+// Wire rules: resource types must match, the source must supply it, the target must accept it.
+function validateWire(w, res, aId, bId) {
+  const A = w.buildings.get(aId), B = w.buildings.get(bId);
+  if (!A || !B) return { ok: false, reason: 'Missing building' };
+  if (A === B) return { ok: false, reason: 'Cannot wire a building to itself' };
+  let from = A, to = B;
+  if (!(canSupply(A.def, res) && canAccept(B.def, res))) {
+    if (canSupply(B.def, res) && canAccept(A.def, res)) { from = B; to = A; }
+    else {
+      const L = RES[res].label.toLowerCase();
+      if (!canSupply(A.def, res) && !canSupply(B.def, res)) return { ok: false, reason: `Neither ${A.def.name} nor ${B.def.name} supplies ${L}` };
+      return { ok: false, reason: `${L} can't flow between ${A.def.name} and ${B.def.name}` };
+    }
+  }
+  if (w.wires.some(x => x.res === res && x.from === from.id && x.to === to.id)) return { ok: false, reason: 'Already connected' };
+  return { ok: true, from, to };
+}
+function addWire(w, res, from, to) {
+  const wire = { id: w.nextW++, res, from, to, cut: false, broken: 0, flow: 0 };
+  w.wires.push(wire); return wire;
+}
+
+// Allocation for ONE resource given current service levels.
+function allocateRes(w, bs, res, svc, sun, out) {
+  const rem = new Map(), relayCap = new Map(), producers = [], adj = new Map();
+  let demandTotal = 0;
+  for (const b of bs) {
+    const d = b.def, s = svc.get(b.id);
+    const dem = ((d.needs && d.needs[res]) || 0) + ((d.takes && d.takes[res]) || 0);
+    if (dem > 0 && b.down <= 0) { rem.set(b.id, dem); demandTotal += (d.needs && d.needs[res]) || 0; }   // sink capacity ("takes") is not demand
+    if (d.relay && d.relay[res]) relayCap.set(b.id, d.relay[res] * s);
+    if (d.makes && d.makes[res]) producers.push({ b, cap: d.makes[res] * s * (d.solar ? sun : 1) });
+  }
+  for (const wr of w.wires) {
+    if (wr.res !== res || wr.cut || wr.broken > 0) continue;
+    if (!adj.has(wr.from)) adj.set(wr.from, []);
+    adj.get(wr.from).push({ to: wr.to, wire: wr });
+  }
+  let capTotal = 0, usedTotal = 0;
+  producers.sort((a, b) => b.cap - a.cap);
+  for (const P of producers) {
+    capTotal += P.cap;
+    if (P.cap <= 1e-9) continue;
+    const pid = P.b.id, parent = new Map([[pid, null]]), dist = new Map([[pid, 0]]), order = [pid];
+    for (let qi = 0; qi < order.length; qi++) {
+      const u = order[qi];
+      if (u !== pid && !(relayCap.get(u) > 1e-9)) continue;       // only relays pass flow along
+      for (const e of (adj.get(u) || [])) if (!parent.has(e.to)) {
+        parent.set(e.to, { from: u, wire: e.wire }); dist.set(e.to, dist.get(u) + 1); order.push(e.to);
+      }
+    }
+    const reached = order.filter(id => id !== pid && (rem.get(id) || 0) > 1e-9);
+    // relays (substations, junctions) are served first, nearest first, so they never starve behind their own downstream
+    reached.sort((a, b) => {
+      const ra = relayCap.has(a) ? 1 : 0, rb = relayCap.has(b) ? 1 : 0;
+      if (ra !== rb) return rb - ra;
+      if (ra) return dist.get(a) - dist.get(b);
+      return (w.buildings.get(b).def.priority - w.buildings.get(a).def.priority) || (dist.get(a) - dist.get(b));
+    });
+    for (const cid of reached) {
+      let amt = Math.min(P.cap, rem.get(cid)); if (amt <= 1e-9) continue;
+      const path = [], relays = []; let cur = cid;
+      while (parent.get(cur) !== null) { const p = parent.get(cur); path.push(p.wire); if (p.from !== pid) relays.push(p.from); cur = p.from; }
+      for (const r of relays) amt = Math.min(amt, relayCap.get(r));
+      if (amt <= 1e-9) continue;
+      P.cap -= amt; rem.set(cid, rem.get(cid) - amt); usedTotal += amt;
+      for (const r of relays) relayCap.set(r, relayCap.get(r) - amt);
+      for (const wr of path) out.flow.set(wr.id, (out.flow.get(wr.id) || 0) + amt);
+      const g = out.got.get(cid) || {}; g[res] = (g[res] || 0) + amt; out.got.set(cid, g);
+      out.delivered.set(pid + ':' + res, (out.delivered.get(pid + ':' + res) || 0) + amt);
+    }
+    if (P.cap < 0) P.cap = 0;
+  }
+  out.cap[res] = capTotal; out.used[res] = usedTotal; out.demand[res] = demandTotal;
+}
+
+// Greatest fixed point: start every building at 100% and only ever lower it until stable.
+// (A cycle such as nuclear -> pump -> water -> nuclear therefore stays healthy until something breaks it,
+//  and recovers on its own once repaired.)
+function simulate(w, sun) {
+  const bs = [...w.buildings.values()], svc = new Map();
+  for (const b of bs) svc.set(b.id, b.down > 0 ? 0 : 1);
+  let out = null;
+  for (let pass = 0; pass < 40; pass++) {
+    out = { got: new Map(), flow: new Map(), delivered: new Map(), cap: {}, used: {}, demand: {} };
+    for (const r of RESKEYS) allocateRes(w, bs, r, svc, sun, out);
+    let changed = false;
+    for (const b of bs) {
+      if (b.down > 0) continue;
+      let s = 1; const g = out.got.get(b.id) || {};
+      for (const r in b.def.needs) s = Math.min(s, Math.min(1, (g[r] || 0) / b.def.needs[r]));
+      s = Math.min(svc.get(b.id), s);
+      if (svc.get(b.id) - s > 1e-9) { svc.set(b.id, s); changed = true; }
+    }
+    if (!changed) break;
+  }
+  for (const b of bs) {
+    const s = svc.get(b.id); b.service = s >= 0.999 ? 1 : s;
+    const g = out.got.get(b.id) || {}; b.ratio = {};
+    for (const r in b.def.needs) b.ratio[r] = b.down > 0 ? 0 : Math.min(1, (g[r] || 0) / b.def.needs[r]);
+    const mk = b.def.makes && b.def.makes.sewage;
+    b.overflow = !!(mk && b.down <= 0 && (mk * s - (out.delivered.get(b.id + ':sewage') || 0)) > 0.5);
+  }
+  for (const wr of w.wires) wr.flow = out.flow.get(wr.id) || 0;
+  w.stats = computeStats(w, bs, out);
+  return w.stats;
+}
+
+function computeStats(w, bs, out) {
+  const st = { cap: out.cap, used: out.used, demand: out.demand, pop: 0, popOnline: 0, housesTotal: 0, noPower: 0, noWater: 0, overflow: 0, failed: 0, degraded: 0, cover: {}, repairMul: 1 };
+  const homes = [];
+  for (const b of bs) {
+    if (b.down > 0 || b.service < 0.01) st.failed++; else if (b.service < 0.999) st.degraded++;
+    if (b.def.repair && b.down <= 0 && b.service > 0.5) st.repairMul += b.def.repair;
+    if (b.def.residents) {
+      homes.push(b); st.housesTotal++; st.pop += b.def.residents;
+      if (b.service >= 0.999) st.popOnline += b.def.residents;
+      if ((b.ratio.power ?? 1) < 0.999) st.noPower++;
+      if ((b.ratio.water ?? 1) < 0.999) st.noWater++;
+      if (b.overflow) st.overflow++;
+    }
+  }
+  const types = ['health', 'safety', 'fire', 'education', 'comms', 'happiness'];
+  for (const t of types) {
+    const prov = bs.filter(b => b.def.cover && b.def.cover.type === t && b.down <= 0 && b.service > 0.5);
+    let ok = 0;
+    for (const h of homes) {
+      const hc = centerOf(h);
+      if (prov.some(p => { const pc = centerOf(p); return Math.hypot(pc.x - hc.x, pc.y - hc.y) <= p.def.cover.r; })) ok++;
+    }
+    st.cover[t] = homes.length ? ok / homes.length : 0;
+  }
+  return st;
+}
+
+function buildDemo(w) {
+  const B = {};
+  const P = (id, key, x, y) => { const b = addBuilding(w, key, x, y); if (!b) throw new Error(`cannot place ${id} (${key}) at ${x},${y}`); B[id] = b; return b; };
+  const L = (res, from, ...tos) => { for (const t of tos) {
+    const r = validateWire(w, res, B[from].id, B[t].id);
+    if (!r.ok) throw new Error(`wire ${res} ${from}->${t}: ${r.reason}`);
+    addWire(w, res, r.from.id, r.to.id);
+  } };
+  // utilities
+  P('nuclear','nuclear',2,2); P('pump','pump',9,2); P('tower','tower',14,3);
+  P('gasdepot','gasdepot',2,20); P('gasplant','gasplant',6,20); P('backup','backupgen',12,18);
+  P('solar','solar',35,2); P('battery','battery',4,8); P('treat','treatment',33,20); P('telecom','telecom',24,2);
+  P('subA','substation',7,7); P('subB','substation',15,10); P('subC','substation',27,10); P('subD','substation',17,17);
+  P('jW1','junction',15,8); P('jW2','junction',24,9); P('jW3','junction',22,13);
+  P('jS1','junction',14,12); P('jS2','junction',24,12); P('jS3','junction',29,17);
+  P('jG1','junction',9,18); P('jG2','junction',22,17); P('jG3','junction',29,12);
+  // homes
+  P('h1','house',12,7); P('h2','house',12,10); P('h3','house',17,7); P('h4','house',17,10); P('h5','house',22,7); P('h6','house',22,10);
+  P('ap1','apartment',26,6);
+  // health, emergency, gov, education
+  P('hospital','hospital',8,10); P('clinic','clinic',30,6); P('police','police',20,3); P('fire','fire',26,3); P('emerg','emergency',9,6);
+  P('school','school',30,10); P('univ','university',35,6); P('townhall','townhall',14,14); P('library','library',6,14);
+  // commercial, industry, public
+  P('shop','shop',19,14); P('mall','mall',23,14); P('rest','restaurant',28,14); P('office','office',31,14); P('fuel','fuel',10,15);
+  P('factory','factory',18,19); P('farm','farm',24,19); P('ware','warehouse',15,19);
+  P('park','park',2,12); P('toilet','toilet',4,16);
+
+  // POWER
+  L('power','nuclear','subA'); L('power','gasplant','subA'); L('power','solar','subC'); L('power','backup','hospital');
+  L('power','subA','pump','hospital','library','battery','emerg','fuel','subB');
+  L('power','subB','h1','h2','h3','h4','townhall','police','subC','subD');
+  L('power','subC','h5','h6','ap1','clinic','school','mall','rest','office','fire','telecom','univ','treat');
+  L('power','subD','factory','ware','shop');
+  // WATER
+  L('water','pump','nuclear','tower'); L('water','tower','jW1');
+  L('water','jW1','h1','h2','h3','h4','hospital','library','townhall','toilet','jW2');
+  L('water','jW2','h5','h6','ap1','clinic','school','fire','police','univ','jW3');
+  L('water','jW3','shop','mall','rest','office','factory','farm');
+  // SEWAGE
+  L('sewage','h1','jS1'); L('sewage','h2','jS1'); L('sewage','h3','jS1'); L('sewage','h4','jS1'); L('sewage','hospital','jS1'); L('sewage','toilet','jS1');
+  L('sewage','jS1','jS2');
+  L('sewage','h5','jS2'); L('sewage','h6','jS2'); L('sewage','ap1','jS2'); L('sewage','clinic','jS2'); L('sewage','school','jS2');
+  L('sewage','univ','jS2'); L('sewage','shop','jS2'); L('sewage','mall','jS2'); L('sewage','office','jS2'); L('sewage','rest','jS2');
+  L('sewage','jS2','jS3'); L('sewage','factory','jS3'); L('sewage','jS3','treat');
+  // GAS
+  L('gas','gasdepot','jG1'); L('gas','jG1','gasplant','backup','fuel','jG2');
+  L('gas','jG2','factory','mall','jG3'); L('gas','jG3','rest','ap1','univ');
+  return B;
+}
+// ==== ENGINE END ====
+
+/* =====================================================================
+   UI
+   ===================================================================== */
+const T = 28;                                  // tile size in canvas pixels
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+cv.width = GW * T; cv.height = GH * T;
+const $ = id => document.getElementById(id);
+
+let world = createWorld();
+let tool = 'select', placeKey = null, wireRes = 'power';
+let selected = null, drag = null, mouse = { px: -1, py: -1, tx: -1, ty: -1, inside: false, cx: 0, cy: 0 };
+let paused = false, speed = 1, clock = 22, simAccum = 0, effects = [], shake = 0, dirty = true;
+const visible = { power: true, water: true, sewage: true, gas: true };
+const RESIDX = { power: 0, water: 1, sewage: 2, gas: 3 };
+const logLines = [];
+
+function log(msg, cls) {
+  logLines.unshift({ t: clock, msg, cls: cls || '' }); if (logLines.length > 40) logLines.pop();
+  const el = $('log'); if (!el) return;
+  el.innerHTML = logLines.slice(0, 12).map(l => `<div class="${l.cls}">${l.msg}</div>`).join('');
+}
+let toastTimer = 0;
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1800); }
+function sunFactor() { const ph = (clock / 90) * Math.PI * 2; return Math.max(0, Math.sin(ph)); }
+
+/* ---------- palette ---------- */
+function chipText(d) {
+  const parts = [];
+  const n = Object.entries(d.needs).map(([r, v]) => RES[r].icon + v).join(' ');
+  const tk = Object.entries(d.takes).map(([r, v]) => '↓' + RES[r].icon + v).join(' ');
+  const mk = Object.entries(d.makes).map(([r, v]) => RES[r].icon + v).join(' ');
+  const rl = Object.keys(d.relay).map(r => RES[r].icon).join('');
+  if (n) parts.push(n); if (tk) parts.push(tk); if (mk) parts.push('→ ' + mk); if (rl) parts.push('⇄ ' + rl);
+  return `${d.w}×${d.h}` + (parts.length ? ' · ' + parts.join(' ') : '');
+}
+function buildPalette() {
+  const pal = $('palette'); let html = '';
+  for (const ck in CATS) {
+    html += `<h3>${CATS[ck].label}</h3>`;
+    for (const k in DEFS) { const d = DEFS[k]; if (d.cat !== ck) continue;
+      html += `<div class="item" data-key="${k}"><div class="ic" style="background:${CATS[ck].color}">${d.icon}</div><div><b>${d.name}</b><small>${chipText(d)}</small></div></div>`;
+    }
+  }
+  pal.innerHTML = html;
+  pal.querySelectorAll('.item').forEach(el => el.addEventListener('pointerdown', e => {
+    e.preventDefault(); drag = { type: 'palette', key: el.dataset.key, moved: false, sx: e.clientX, sy: e.clientY };
+    updateMouse(e);
+  }));
+}
+function refreshPaletteSel() { document.querySelectorAll('#palette .item').forEach(el => el.classList.toggle('sel', tool === 'place' && el.dataset.key === placeKey)); }
+
+/* ---------- tools ---------- */
+function setTool(t, key) {
+  tool = t; placeKey = key || null; drag = null;
+  ['select', 'wire', 'cut', 'delete'].forEach(n => $('t-' + n).classList.toggle('on', n === t));
+  refreshPaletteSel(); updateHint();
+}
+function updateHint() {
+  const h = {
+    select: 'Drag buildings from the left onto the map. Drag a placed building to move it. Click to inspect.',
+    place: `Placing ${placeKey ? DEFS[placeKey].name : ''}: click the map to place (Esc to stop).`,
+    wire: `Wire tool (${RES[wireRes].label}): drag from one building to another. Keys 1-4 switch resource.`,
+    cut: 'Cut tool: click a wire to cut it (click again to reconnect).',
+    delete: 'Delete tool: click a building or a wire to remove it.'
+  };
+  $('hint').textContent = h[tool];
+}
+function buildWireChips() {
+  $('wirechips').innerHTML = RESKEYS.map((r, i) =>
+    `<span class="chip" data-r="${r}" title="key ${i + 1}"><i style="background:${RES[r].color}"></i>${RES[r].label}<span class="eye" data-eye="${r}" title="show/hide layer" style="margin-left:4px">👁</span></span>`).join(' ');
+  document.querySelectorAll('#wirechips .chip').forEach(c => c.addEventListener('click', e => {
+    const r = c.dataset.r;
+    if (e.target.dataset.eye) { visible[r] = !visible[r]; c.classList.toggle('hid', !visible[r]); return; }
+    wireRes = r; setTool('wire'); refreshChips();
+  }));
+  refreshChips();
+}
+function refreshChips() { document.querySelectorAll('#wirechips .chip').forEach(c => c.classList.toggle('on', c.dataset.r === wireRes)); }
+
+/* ---------- geometry helpers ---------- */
+function updateMouse(e) {
+  const r = cv.getBoundingClientRect(), sx = cv.width / r.width, sy = cv.height / r.height;
+  const px = (e.clientX - r.left) * sx, py = (e.clientY - r.top) * sy;
+  mouse = { px, py, tx: px / T, ty: py / T, inside: e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom, cx: e.clientX, cy: e.clientY };
+}
+function buildingAt(tx, ty) {
+  const x = Math.floor(tx), y = Math.floor(ty);
+  if (x < 0 || y < 0 || x >= GW || y >= GH) return null;
+  return world.buildings.get(world.occ[y * GW + x]) || null;
+}
+function wireSeg(wr) {
+  const a = world.buildings.get(wr.from), b = world.buildings.get(wr.to); if (!a || !b) return null;
+  const ca = centerOf(a), cb = centerOf(b);
+  let x1 = ca.x * T, y1 = ca.y * T, x2 = cb.x * T, y2 = cb.y * T;
+  const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1, off = (RESIDX[wr.res] - 1.5) * 4;
+  const nx = -dy / len * off, ny = dx / len * off;
+  return { x1: x1 + nx, y1: y1 + ny, x2: x2 + nx, y2: y2 + ny };
+}
+function distSeg(px, py, s) {
+  const dx = s.x2 - s.x1, dy = s.y2 - s.y1, l2 = dx * dx + dy * dy || 1;
+  let t = ((px - s.x1) * dx + (py - s.y1) * dy) / l2; t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (s.x1 + t * dx), py - (s.y1 + t * dy));
+}
+function wireAt(px, py) {
+  let best = null, bd = 7;
+  for (const wr of world.wires) { if (!visible[wr.res]) continue; const s = wireSeg(wr); if (!s) continue; const d = distSeg(px, py, s); if (d < bd) { bd = d; best = wr; } }
+  return best;
+}
+function ghostFor(def, ignoreId) {
+  const x = Math.max(0, Math.min(GW - def.w, Math.round(mouse.tx - def.w / 2))), y = Math.max(0, Math.min(GH - def.h, Math.round(mouse.ty - def.h / 2)));
+  return { x, y, ok: canPlace(world, def, x, y, ignoreId || 0), def };
+}
+
+/* ---------- actions ---------- */
+function tryPlace(key) {
+  const g = ghostFor(DEFS[key]);
+  if (!g.ok) { toast('That spot is blocked'); return null; }
+  const b = addBuilding(world, key, g.x, g.y); dirty = true; log(`Placed ${DEFS[key].name}`); return b;
+}
+function tryWire(fromB, toB) {
+  const v = validateWire(world, wireRes, fromB.id, toB.id);
+  if (!v.ok) { toast(v.reason); return; }
+  addWire(world, wireRes, v.from.id, v.to.id); dirty = true;
+  log(`${RES[wireRes].icon} ${v.from.def.name} → ${v.to.def.name}`);
+}
+function select(id) { selected = id; renderInspector(); }
+function removeSelected() { if (selected && world.buildings.has(selected)) { log(`Removed ${world.buildings.get(selected).def.name}`, 'warn'); removeBuilding(world, selected); selected = null; dirty = true; renderInspector(); } }
+
+cv.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('pointerdown', e => {
+  e.preventDefault(); updateMouse(e);
+  if (tool === 'place') { tryPlace(placeKey); return; }
+  const b = buildingAt(mouse.tx, mouse.ty);
+  if (tool === 'select') {
+    if (b) { select(b.id); drag = { type: 'move', b, ox: b.x, oy: b.y, grabX: mouse.tx - b.x, grabY: mouse.ty - b.y, moved: false }; } else select(null);
+  } else if (tool === 'wire') {
+    if (b) drag = { type: 'wire', from: b };
+  } else if (tool === 'cut') {
+    const w = wireAt(mouse.px, mouse.py);
+    if (w) { w.cut = !w.cut; dirty = true; const a = world.buildings.get(w.from), c = world.buildings.get(w.to); log(`${w.cut ? '✂ Cut' : 'Reconnected'} ${RES[w.res].label.toLowerCase()} line ${a.def.name} → ${c.def.name}`, w.cut ? 'bad' : 'good'); }
+  } else if (tool === 'delete') {
+    if (b) { if (selected === b.id) selected = null; log(`Removed ${b.def.name}`, 'warn'); removeBuilding(world, b.id); dirty = true; renderInspector(); }
+    else { const w = wireAt(mouse.px, mouse.py); if (w) { world.wires = world.wires.filter(x => x !== w); dirty = true; log('Removed a line', 'warn'); } }
+  }
+});
+window.addEventListener('pointermove', e => {
+  updateMouse(e);
+  if (drag && drag.type === 'palette' && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 5) drag.moved = true;
+  if (drag && drag.type === 'move') drag.moved = true;
+  const tip = $('tip');
+  if (mouse.inside && !drag) {
+    const b = buildingAt(mouse.tx, mouse.ty);
+    if (b) {
+      const st = b.down > 0 ? `OUT ${Math.ceil(b.down)}s` : `${Math.round(b.service * 100)}%`;
+      tip.textContent = `${b.def.icon} ${b.def.name} · ${st}`; tip.style.display = 'block';
+      const sr = $('stage').getBoundingClientRect(); tip.style.left = (e.clientX - sr.left + 14) + 'px'; tip.style.top = (e.clientY - sr.top + 14) + 'px';
+    } else tip.style.display = 'none';
+  } else tip.style.display = 'none';
+});
+window.addEventListener('pointerup', e => {
+  updateMouse(e);
+  if (!drag) return;
+  const d = drag; drag = null;
+  if (d.type === 'palette') {
+    if (d.moved && mouse.inside) { const b = tryPlace(d.key); if (b) select(b.id); }
+    else if (!d.moved) setTool('place', d.key);
+  } else if (d.type === 'move') {
+    const g = ghostFor(d.b.def, d.b.id), x = Math.max(0, Math.min(GW - d.b.def.w, Math.round(mouse.tx - d.grabX))), y = Math.max(0, Math.min(GH - d.b.def.h, Math.round(mouse.ty - d.grabY)));
+    if (d.moved && (x !== d.b.x || y !== d.b.y)) { if (moveBuilding(world, d.b, x, y)) { dirty = true; log(`Moved ${d.b.def.name}`); } else toast('That spot is blocked'); }
+    renderInspector();
+  } else if (d.type === 'wire') {
+    const t = mouse.inside ? buildingAt(mouse.tx, mouse.ty) : null;
+    if (t && t !== d.from) tryWire(d.from, t);
+  }
+});
+window.addEventListener('keydown', e => {
+  if (e.target && /input|textarea/i.test(e.target.tagName)) return;
+  const k = e.key.toLowerCase();
+  if (k === 'escape') setTool('select');
+  else if (k === 'v') setTool('select'); else if (k === 'w') setTool('wire'); else if (k === 'c') setTool('cut'); else if (k === 'x') setTool('delete');
+  else if (k === 'p') togglePause();
+  else if (k >= '1' && k <= '4') { wireRes = RESKEYS[+k - 1]; refreshChips(); setTool('wire'); }
+  else if (k === 'delete' || k === 'backspace') removeSelected();
+});
+
+/* ---------- disasters ---------- */
+const rnd = (a, b) => a + Math.random() * (b - a);
+function damageBuilding(b, secs) { if (b.down < secs) b.down = secs; }
+function disaster(kind) {
+  const bs = [...world.buildings.values()];
+  if (kind === 'quake') {
+    const cx = rnd(6, GW - 6), cy = rnd(5, GH - 5), r = 6.5; let hit = 0, wires = 0;
+    for (const b of bs) { const c = centerOf(b), d = Math.hypot(c.x - cx, c.y - cy); if (d <= r + 1) { damageBuilding(b, d < r * 0.5 ? rnd(24, 38) : rnd(12, 24)); hit++; } }
+    for (const wr of world.wires) { const a = world.buildings.get(wr.from), c = world.buildings.get(wr.to), ca = centerOf(a), cc = centerOf(c);
+      const m = { x: (ca.x + cc.x) / 2, y: (ca.y + cc.y) / 2 };
+      if ([ca, cc, m].some(p => Math.hypot(p.x - cx, p.y - cy) <= r)) { wr.broken = Math.max(wr.broken, rnd(14, 30)); wires++; } }
+    effects.push({ type: 'ring', x: cx, y: cy, r, t: 0, life: 1.6, color: '255,120,60' }); shake = 0.7;
+    log(`🌋 Earthquake! ${hit} buildings and ${wires} lines damaged`, 'bad');
+  } else if (kind === 'storm') {
+    let n = 0; for (const wr of world.wires) if (wr.res === 'power' && Math.random() < 0.35) { wr.broken = Math.max(wr.broken, rnd(12, 26)); n++; }
+    effects.push({ type: 'flash', t: 0, life: 0.9 }); log(`⛈️ Storm! ${n} power lines down`, 'bad');
+  } else if (kind === 'flood') {
+    const fw = 14, fh = 6, fx = Math.floor(rnd(0, GW - fw)), fy = Math.floor(rnd(0, GH - fh)); let hit = 0;
+    for (const b of bs) if (b.x < fx + fw && b.x + b.def.w > fx && b.y < fy + fh && b.y + b.def.h > fy) { damageBuilding(b, rnd(16, 32)); hit++; }
+    for (const wr of world.wires) { const a = world.buildings.get(wr.from), c = world.buildings.get(wr.to), ca = centerOf(a), cc = centerOf(c);
+      if ([ca, cc].some(p => p.x >= fx && p.x <= fx + fw && p.y >= fy && p.y <= fy + fh)) wr.broken = Math.max(wr.broken, rnd(14, 28)); }
+    effects.push({ type: 'rect', x: fx, y: fy, w: fw, h: fh, t: 0, life: 3.2 }); log(`🌊 Flood! ${hit} buildings submerged`, 'bad');
+  }
+  dirty = true;
+}
+function repairAll() { for (const b of world.buildings.values()) b.down = 0; for (const w of world.wires) w.broken = 0; dirty = true; log('🛠️ Emergency crews repaired everything', 'good'); }
+
+/* ---------- inspector / stats ---------- */
+function renderInspector() {
+  const el = $('c-insp'), b = selected && world.buildings.get(selected);
+  if (!b) { el.innerHTML = '<h4>Inspector</h4><div style="color:var(--muted)">Click a building to inspect it.</div>'; return; }
+  const d = b.def; let h = `<h4>Inspector</h4><div class="row"><b>${d.icon} ${d.name}</b><span style="color:var(--muted)">#${b.id} · ${d.w}×${d.h}</span></div>`;
+  const status = b.down > 0 ? `<span style="color:var(--bad)">OUT (${Math.ceil(b.down)}s)</span>` : b.service >= 0.999 ? '<span style="color:var(--good)">Operating</span>' : b.service > 0.01 ? '<span style="color:var(--warn)">Degraded</span>' : '<span style="color:var(--bad)">Failed</span>';
+  h += `<div class="row"><span>Status</span><span>${status} · ${Math.round(b.service * 100)}%</span></div>`;
+  for (const r in d.needs) { const p = Math.round((b.ratio[r] ?? 0) * 100);
+    h += `<div class="row"><span>${RES[r].icon} needs ${d.needs[r]}</span><span>${p}%</span></div><div class="bar"><div style="width:${p}%;background:${RES[r].color}"></div></div>`; }
+  for (const r in d.takes) h += `<div class="row"><span>${RES[r].icon} takes up to</span><span>${d.takes[r]}</span></div>`;
+  for (const r in d.makes) h += `<div class="row"><span>${RES[r].icon} makes</span><span>${Math.round(d.makes[r] * b.service * (d.solar ? sunFactor() : 1))} / ${d.makes[r]}</span></div>`;
+  for (const r in d.relay) h += `<div class="row"><span>${RES[r].icon} relays up to</span><span>${d.relay[r]}</span></div>`;
+  if (b.overflow) h += '<div class="row" style="color:var(--warn)">⚠ Sewage backing up — not reaching a treatment plant</div>';
+  h += `<div class="row" style="margin-top:8px"><button id="i-ko">Knock out 30s</button><button id="i-fix">Repair</button><button id="i-del" class="danger">Delete</button></div>`;
+  el.innerHTML = h;
+  $('i-ko').onclick = () => { b.down = 30; dirty = true; log(`${d.name} knocked out`, 'bad'); };
+  $('i-fix').onclick = () => { b.down = 0; dirty = true; log(`${d.name} repaired`, 'good'); };
+  $('i-del').onclick = removeSelected;
+}
+function pct(x) { return Math.round(x * 100) + '%'; }
+function renderStats() {
+  const s = world.stats; if (!s) return;
+  const sun = sunFactor();
+  $('c-clock').innerHTML = `<h4>Time</h4><div class="row"><span>${sun > 0.05 ? '☀️ Daytime' : '🌙 Night'} · solar ${pct(sun)}</span><span>${Math.floor(world.time)}s</span></div><div class="row"><span>Repair speed</span><span>${s.repairMul}×</span></div>`;
+  const popPct = s.pop ? s.popOnline / s.pop : 1, col = popPct > 0.95 ? 'var(--good)' : popPct > 0.6 ? 'var(--warn)' : 'var(--bad)';
+  $('c-city').innerHTML = `<h4>Town</h4><div class="big" style="color:${col}">${s.popOnline}<span style="font-size:13px;color:var(--muted)"> / ${s.pop} residents fully served</span></div><div class="bar"><div style="width:${popPct * 100}%;background:${col}"></div></div>
+    <div class="row" style="margin-top:6px"><span>Homes without power</span><b>${s.noPower}</b></div><div class="row"><span>Homes without water</span><b>${s.noWater}</b></div>
+    <div class="row"><span>Sewage overflowing</span><b style="color:${s.overflow ? 'var(--warn)' : 'inherit'}">${s.overflow}</b></div>
+    <div class="row"><span>Failed / degraded buildings</span><b>${s.failed} / ${s.degraded}</b></div>`;
+  $('c-grid').innerHTML = '<h4>Networks (used / capacity)</h4>' + RESKEYS.map(r => {
+    const cap = s.cap[r] || 0, used = s.used[r] || 0, dem = s.demand[r] || 0, f = cap > 0 ? Math.min(1, used / cap) : 0;
+    return `<div class="row"><span>${RES[r].icon} ${RES[r].label}</span><span>${Math.round(used)} / ${Math.round(cap)} ${RES[r].unit}${dem - used > 0.5 ? ` <span style="color:var(--bad)">(short ${Math.round(dem - used)})</span>` : ''}</span></div><div class="bar"><div style="width:${f * 100}%;background:${RES[r].color}"></div></div>`; }).join('');
+  const names = { health: '🏥 Health', safety: '👮 Safety', fire: '🚒 Fire', education: '🎓 Education', comms: '📡 Comms', happiness: '🌳 Parks & culture' };
+  $('c-cover').innerHTML = '<h4>Service coverage of homes</h4>' + Object.keys(names).map(t => `<div class="row"><span>${names[t]}</span><span>${pct(s.cover[t] || 0)}</span></div><div class="bar"><div style="width:${(s.cover[t] || 0) * 100}%;background:var(--accent)"></div></div>`).join('');
+}
+
+/* ---------- main loop ---------- */
+let last = performance.now(), statTimer = 0;
+function step(dt) {
+  if (!paused) {
+    const sdt = dt * speed; world.time += sdt; clock += sdt;
+    const mul = world.stats ? world.stats.repairMul : 1;
+    for (const b of world.buildings.values()) if (b.down > 0) { b.down -= sdt * mul; if (b.down <= 0) { b.down = 0; dirty = true; log(`${b.def.icon} ${b.def.name} back online`, 'good'); } }
+    for (const w of world.wires) if (w.broken > 0) { w.broken -= sdt * mul; if (w.broken <= 0) { w.broken = 0; dirty = true; } }
+    simAccum += sdt; if (simAccum >= 0.5) { simAccum = 0; dirty = true; }       // sun changes continuously
+  }
+  if (dirty) { simulate(world, sunFactor()); dirty = false; if (selected) renderInspectorSoon(); }
+  for (const b of world.buildings.values()) b.disp += (b.service - b.disp) * Math.min(1, dt * 6);
+  for (const f of effects) f.t += dt; effects = effects.filter(f => f.t < f.life);
+  shake = Math.max(0, shake - dt);
+}
+let inspTimer = 0; function renderInspectorSoon() { const n = performance.now(); if (n - inspTimer > 300) { inspTimer = n; renderInspector(); } }
+
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+const EMOJI = '"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
+
+function draw(now) {
+  const t = now / 1000;
+  ctx.save(); ctx.clearRect(0, 0, cv.width, cv.height);
+  if (shake > 0) ctx.translate((Math.random() - 0.5) * 8 * shake, (Math.random() - 0.5) * 8 * shake);
+  // ground
+  for (let j = 0; j < GH; j++) for (let i = 0; i < GW; i++) { ctx.fillStyle = (i + j) % 2 ? '#2d4833' : '#2a4430'; ctx.fillRect(i * T, j * T, T, T); }
+  ctx.strokeStyle = 'rgba(255,255,255,.04)'; ctx.lineWidth = 1; ctx.beginPath();
+  for (let i = 0; i <= GW; i++) { ctx.moveTo(i * T + .5, 0); ctx.lineTo(i * T + .5, GH * T); }
+  for (let j = 0; j <= GH; j++) { ctx.moveTo(0, j * T + .5); ctx.lineTo(GW * T, j * T + .5); }
+  ctx.stroke();
+  // wires (underground, under buildings)
+  const hoverB = !drag && mouse.inside ? buildingAt(mouse.tx, mouse.ty) : null, hl = hoverB ? hoverB.id : (selected || 0);
+  for (const wr of world.wires) {
+    if (!visible[wr.res]) continue; const s = wireSeg(wr); if (!s) continue;
+    const active = !wr.cut && wr.broken <= 0, live = active && wr.flow > 0.01, touch = wr.from === hl || wr.to === hl;
+    ctx.lineCap = 'round'; ctx.setLineDash([]);
+    ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.lineWidth = touch ? 5.5 : 4; ctx.beginPath(); ctx.moveTo(s.x1, s.y1); ctx.lineTo(s.x2, s.y2); ctx.stroke();
+    ctx.lineWidth = touch ? 3.5 : 2.2;
+    if (wr.cut) { ctx.strokeStyle = '#ff5a5a'; ctx.setLineDash([3, 6]); }
+    else if (wr.broken > 0) { ctx.strokeStyle = Math.floor(t * 4) % 2 ? '#ff3b3b' : '#7a2020'; ctx.setLineDash([2, 5]); }
+    else if (live) { ctx.strokeStyle = RES[wr.res].color; ctx.setLineDash([7, 7]); ctx.lineDashOffset = -(t * 36) % 14; }
+    else { ctx.strokeStyle = RES[wr.res].color; ctx.globalAlpha = .28; }
+    ctx.beginPath(); ctx.moveTo(s.x1, s.y1); ctx.lineTo(s.x2, s.y2); ctx.stroke();
+    ctx.globalAlpha = 1; ctx.setLineDash([]); ctx.lineDashOffset = 0;
+    if (wr.cut || wr.broken > 0) { ctx.font = `13px ${EMOJI}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(wr.cut ? '✂️' : '💥', (s.x1 + s.x2) / 2, (s.y1 + s.y2) / 2); }
+  }
+  // buildings
+  for (const b of world.buildings.values()) drawBuilding(b, b.x, b.y, 1, t);
+  // ghosts / drag previews
+  if (mouse.inside || drag) {
+    if (tool === 'place' && placeKey && mouse.inside && !drag) { const g = ghostFor(DEFS[placeKey]); drawGhost(g, g.def); }
+    if (drag && drag.type === 'palette' && drag.moved && mouse.inside) { const g = ghostFor(DEFS[drag.key]); drawGhost(g, g.def); }
+    if (drag && drag.type === 'move' && drag.moved) {
+      const d = drag.b.def, x = Math.max(0, Math.min(GW - d.w, Math.round(mouse.tx - drag.grabX))), y = Math.max(0, Math.min(GH - d.h, Math.round(mouse.ty - drag.grabY)));
+      drawGhost({ x, y, ok: canPlace(world, d, x, y, drag.b.id) }, d);
+    }
+    if (drag && drag.type === 'wire') {
+      const c = centerOf(drag.from), tgt = buildingAt(mouse.tx, mouse.ty);
+      const ok = tgt && tgt !== drag.from ? validateWire(world, wireRes, drag.from.id, tgt.id).ok : null;
+      ctx.strokeStyle = ok === false ? '#ff5a5a' : RES[wireRes].color; ctx.lineWidth = 3; ctx.setLineDash([6, 5]);
+      ctx.beginPath(); ctx.moveTo(c.x * T, c.y * T); ctx.lineTo(mouse.px, mouse.py); ctx.stroke(); ctx.setLineDash([]);
+      if (tgt) { ctx.strokeStyle = ok ? '#4ade80' : '#ff5a5a'; ctx.lineWidth = 3; rr(tgt.x * T + 1, tgt.y * T + 1, tgt.def.w * T - 2, tgt.def.h * T - 2, 6); ctx.stroke(); }
+    }
+  }
+  // effects
+  for (const f of effects) {
+    const k = f.t / f.life;
+    if (f.type === 'ring') { ctx.strokeStyle = `rgba(${f.color},${1 - k})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(f.x * T, f.y * T, f.r * T * Math.min(1, k * 1.4), 0, 7); ctx.stroke(); ctx.fillStyle = `rgba(${f.color},${0.18 * (1 - k)})`; ctx.fill(); }
+    if (f.type === 'rect') { ctx.fillStyle = `rgba(60,140,255,${0.35 * (1 - k * k)})`; ctx.fillRect(f.x * T, f.y * T, f.w * T, f.h * T); }
+    if (f.type === 'flash') { ctx.fillStyle = `rgba(255,255,255,${0.5 * (1 - k) * (Math.sin(f.t * 40) > 0 ? 1 : 0.3)})`; ctx.fillRect(0, 0, cv.width, cv.height); }
+  }
+  // night tint
+  const dark = (1 - sunFactor()) * 0.32; if (dark > 0.01) { ctx.fillStyle = `rgba(8,12,40,${dark})`; ctx.fillRect(0, 0, cv.width, cv.height); }
+  ctx.restore();
+}
+function drawGhost(g, d) {
+  ctx.globalAlpha = .75; drawBuilding({ def: d, key: d.key, id: -1, x: g.x, y: g.y, down: 0, service: 1, disp: 1, ratio: {}, overflow: false }, g.x, g.y, 0.85, 0);
+  ctx.globalAlpha = 1; ctx.fillStyle = g.ok ? 'rgba(74,222,128,.22)' : 'rgba(248,113,113,.35)'; rr(g.x * T, g.y * T, d.w * T, d.h * T, 6); ctx.fill();
+  ctx.strokeStyle = g.ok ? '#4ade80' : '#f87171'; ctx.lineWidth = 2; ctx.stroke();
+}
+function drawBuilding(b, gx, gy, alpha, t) {
+  const d = b.def, x = gx * T + 2, y = gy * T + 2, w = d.w * T - 4, h = d.h * T - 4;
+  const col = CATS[d.cat].color, svc = b.disp;
+  ctx.save(); ctx.globalAlpha *= alpha;
+  ctx.fillStyle = 'rgba(0,0,0,.35)'; rr(x + 2, y + 3, w, h, 7); ctx.fill();
+  ctx.fillStyle = col; rr(x, y, w, h, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.10)'; rr(x, y, w, h * 0.45, 7); ctx.fill();
+  if (svc < 0.999) { ctx.fillStyle = `rgba(0,0,0,${(1 - svc) * 0.62})`; rr(x, y, w, h, 7); ctx.fill(); }
+  const state = b.down > 0 || b.service < 0.01 ? 'bad' : b.service < 0.999 ? 'warn' : 'good';
+  ctx.lineWidth = b.id === selected ? 3 : 2;
+  ctx.strokeStyle = b.id === selected ? '#fff' : state === 'good' ? '#4ade80' : state === 'warn' ? '#fbbf24' : (Math.floor(t * 3) % 2 ? '#f87171' : '#8a2a2a');
+  rr(x, y, w, h, 7); ctx.stroke();
+  const fs = Math.min(d.w, d.h) * T * 0.52 + (d.w * d.h === 1 ? 2 : 0);
+  ctx.font = `${Math.max(14, Math.min(34, fs))}px ${EMOJI}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.globalAlpha *= (b.down > 0 ? .45 : 1); ctx.fillStyle = '#fff';
+  ctx.fillText(d.icon, x + w / 2, y + h / 2 - (d.h >= 2 ? 4 : 0));
+  ctx.globalAlpha = alpha;
+  if (d.h >= 2 && d.w >= 2) { ctx.font = '600 9.5px system-ui,sans-serif'; ctx.fillStyle = 'rgba(255,255,255,.92)'; ctx.fillText(d.name.length > d.w * 5.2 ? d.name.split(' ')[0] : d.name, x + w / 2, y + h - 8); }
+  // missing-input dots
+  let dx = x + 5; const dy = y + 5;
+  for (const r in d.needs) if ((b.ratio[r] ?? 1) < 0.999 && b.id > 0) { ctx.fillStyle = RES[r].color; ctx.beginPath(); ctx.arc(dx, dy, 3.4, 0, 7); ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.stroke(); dx += 9; }
+  if (b.overflow) { ctx.font = `12px ${EMOJI}`; ctx.fillText('⚠️', x + w - 9, y + 9); }
+  if (b.down > 0) { ctx.font = `14px ${EMOJI}`; ctx.fillText('⛔', x + w - 9, y + 10); ctx.font = '700 10px system-ui'; ctx.fillStyle = '#fff'; ctx.fillText(Math.ceil(b.down) + 's', x + w / 2, y + h - 8); }
+  ctx.restore();
+}
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  step(dt); draw(now);
+  statTimer += dt; if (statTimer > 0.25) { statTimer = 0; renderStats(); }
+  requestAnimationFrame(frame);
+}
+
+/* ---------- layout / buttons ---------- */
+function resize() {
+  const st = $('stage'), aw = st.clientWidth - 16, ah = st.clientHeight - 16, s = Math.min(aw / cv.width, ah / cv.height);
+  cv.style.width = Math.max(200, cv.width * s) + 'px'; cv.style.height = Math.max(120, cv.height * s) + 'px';
+}
+window.addEventListener('resize', resize);
+function togglePause() { paused = !paused; $('b-pause').textContent = paused ? '▶ Resume' : '⏸ Pause'; $('b-pause').classList.toggle('on', paused); }
+function loadDemo() { world = createWorld(); buildDemo(world); selected = null; dirty = true; simulate(world, sunFactor()); dirty = false; renderInspector(); log('Demo town loaded — everything healthy', 'good'); }
+
+['select', 'wire', 'cut', 'delete'].forEach(n => $('t-' + n).addEventListener('click', () => setTool(n)));
+$('d-quake').onclick = () => disaster('quake'); $('d-storm').onclick = () => disaster('storm'); $('d-flood').onclick = () => disaster('flood'); $('d-repair').onclick = repairAll;
+$('b-pause').onclick = togglePause;
+$('b-speed').onclick = () => { speed = speed === 1 ? 2 : speed === 2 ? 4 : 1; $('b-speed').textContent = speed + '×'; };
+$('b-reset').onclick = loadDemo;
+$('b-clear').onclick = () => { world = createWorld(); selected = null; dirty = true; renderInspector(); log('Map cleared'); };
+$('b-export').onclick = () => {
+  const snap = { grid: { w: GW, h: GH }, buildings: [...world.buildings.values()].map(b => ({ id: b.id, type: b.key, x: b.x, y: b.y })), wires: world.wires.map(x => ({ res: x.res, from: x.from, to: x.to, cut: x.cut })) };
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(snap, null, 2)], { type: 'application/json' })); a.download = 'town.json'; a.click();
+};
+$('b-import').onclick = () => $('file').click();
+$('file').onchange = e => {
+  const f = e.target.files[0]; if (!f) return; const rd = new FileReader();
+  rd.onload = () => { try {
+    const s = JSON.parse(rd.result), w = createWorld(), map = new Map();
+    for (const b of s.buildings) { const nb = addBuilding(w, b.type, b.x, b.y); if (!nb) throw new Error('bad building ' + b.type); map.set(b.id, nb.id); }
+    for (const x of s.wires) { const wr = addWire(w, x.res, map.get(x.from), map.get(x.to)); wr.cut = !!x.cut; }
+    world = w; selected = null; dirty = true; log('Imported town.json', 'good');
+  } catch (err) { toast('Import failed: ' + err.message); } };
+  rd.readAsText(f); e.target.value = '';
+};
+
+buildPalette(); buildWireChips(); updateHint(); resize(); loadDemo();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

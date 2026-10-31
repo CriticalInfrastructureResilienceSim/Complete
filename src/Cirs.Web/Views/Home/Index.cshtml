@@ -1,0 +1,182 @@
+@{
+    ViewData["Title"] = "Home";
+    ViewData["FullWidth"] = true;
+    var isAuthed = User.Identity?.IsAuthenticated == true;
+    var userName = User.Identity?.Name ?? string.Empty;
+}
+
+<main class="landing">
+
+    <section class="hero">
+        <div class="container hero-grid">
+            <div class="hero-copy">
+                <p class="eyebrow">Critical Infrastructure Resilience Simulator</p>
+                <h1>Find the weak link before it fails.</h1>
+                <p class="lead">Build a fictional region of power, water, healthcare and telecom, fail one component and see how the failure spreads. Then see what to fix first.</p>
+
+                @if (isAuthed)
+                {
+                    <p class="hero-welcome">Welcome back, <strong>@userName</strong>.</p>
+                    <div class="hero-actions">
+                        <a class="btn btn-light" asp-controller="Account" asp-action="Profile">View your profile</a>
+                    </div>
+                }
+                else
+                {
+                    <div class="hero-actions">
+                        <a class="btn btn-light" asp-controller="Account" asp-action="SignUp">Create an account</a>
+                        <a class="btn btn-ghost" asp-controller="Account" asp-action="Login">Log in</a>
+                    </div>
+                }
+
+                <ul class="hero-chips" aria-label="Project facts">
+                    <li>UN SDG 9: resilient infrastructure</li>
+                    <li>UN SDG 11: continuity of essential services</li>
+                    <li>Synthetic data only</li>
+                </ul>
+            </div>
+
+            <div class="hero-panel" role="img" aria-label="Illustration of a failure spreading through a small infrastructure network">
+                <div class="panel-head">
+                    <span>Cascade preview</span>
+                    <span class="panel-tag">Illustration</span>
+                </div>
+
+                <svg viewBox="0 0 520 230" aria-hidden="true" focusable="false">
+                    <g class="art-edges">
+                        <path d="M70 115 L190 55" />
+                        <path d="M70 115 L190 175" />
+                        <path d="M190 55 L330 55" />
+                        <path d="M190 175 L330 175" />
+                        <path d="M330 55 L450 115" />
+                        <path d="M330 175 L450 115" class="art-edge-dead" />
+                        <path d="M190 55 L190 175" class="art-edge-dead" />
+                    </g>
+                    <g class="art-nodes">
+                        <circle cx="70" cy="115" r="20" /><circle cx="190" cy="55" r="20" />
+                        <circle cx="190" cy="175" r="20" class="art-node-dead" /><circle cx="330" cy="55" r="20" />
+                        <circle cx="330" cy="175" r="20" class="art-node-dead" /><circle cx="450" cy="115" r="20" class="art-node-bkp" />
+                    </g>
+                </svg>
+
+                <ul class="legend">
+                    <li><span class="badge badge-ok">OK</span> Power source</li>
+                    <li><span class="badge badge-ok">OK</span> Substation</li>
+                    <li><span class="badge badge-down">DOWN</span> Pump station</li>
+                    <li><span class="badge badge-down">DOWN</span> Telecom tower</li>
+                    <li><span class="badge badge-bkp">BKP</span> Hospital, on backup power</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container">
+            <div class="section-head">
+                <p class="eyebrow eyebrow-dark">What it answers</p>
+                <h2>Three questions every planner asks</h2>
+            </div>
+
+            <div class="feature-grid">
+                <article class="feature-card">
+                    <span class="feature-icon">@Icons.Svg("target")</span>
+                    <p class="feature-q">How exposed is this network?</p>
+                    <h3>Vulnerability analysis</h3>
+                    <p>Fail every facility one at a time, and the worst pairs. Get a ranked table, a heat map and plain sentences such as "this substation is on every power path to the hospital".</p>
+                </article>
+                <article class="feature-card">
+                    <span class="feature-icon">@Icons.Svg("route")</span>
+                    <p class="feature-q">What is the best recovery right now?</p>
+                    <h3>Recovery Advisor</h3>
+                    <p>Compare options by gain, side effect and cost. A tempting fix can turn out net-negative, and if nothing is efficient the verdict names the bottleneck.</p>
+                </article>
+                <article class="feature-card">
+                    <span class="feature-icon">@Icons.Svg("layers")</span>
+                    <p class="feature-q">How should we redesign it?</p>
+                    <h3>Design Advisor</h3>
+                    <p>See upgrades such as a second supplier, a backup or an extra link, ranked by resilience gained per cost, with a before and after score.</p>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="section section-alt">
+        <div class="container">
+            <div class="section-head">
+                <p class="eyebrow eyebrow-dark">How it works</p>
+                <h2>From a blank region to a recovery plan</h2>
+            </div>
+
+            <ol class="steps">
+                <li><span class="step-num">1</span><h3>Build</h3><p>Place facilities in up to three towns and connect them with typed links.</p></li>
+                <li><span class="step-num">2</span><h3>Fail</h3><p>Schedule an event at a chosen step, such as a substation losing all output.</p></li>
+                <li><span class="step-num">3</span><h3>Replay</h3><p>The server computes every step, and you scrub through the cascade on a timeline.</p></li>
+                <li><span class="step-num">4</span><h3>Fix</h3><p>Read the vulnerability report, then compare recovery and redesign options.</p></li>
+            </ol>
+        </div>
+    </section>
+
+    <section class="band-dark">
+        <div class="container band-grid">
+            <div>
+                <p class="eyebrow">Built the hard way</p>
+                <h2>Every structure and algorithm is written by us</h2>
+                <p>The simulation runs on the server in C#, on hand-built data structures, with no library collections. The browser only shows what the server decides.</p>
+            </div>
+            <div>
+                <p class="chip-title">Data structures</p>
+                <ul class="chips">
+                    <li>Dynamic array</li><li>Linked list</li><li>Queue</li><li>Stack</li><li>Hash table</li>
+                    <li>Min-heap</li><li>AVL tree</li><li>Union-Find</li><li>Directed graph</li>
+                </ul>
+                <p class="chip-title">Algorithms</p>
+                <ul class="chips">
+                    <li>BFS and DFS</li><li>Strongly connected components</li><li>Topological sort</li>
+                    <li>Articulation points</li><li>Max-flow and min-cut</li><li>Knapsack DP</li>
+                    <li>Greedy</li><li>Dominator tree</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container">
+            <div class="section-head">
+                <p class="eyebrow eyebrow-dark">Project status</p>
+                <h2>Where we are right now</h2>
+            </div>
+
+            <ul class="roadmap">
+                <li>
+                    <span class="status status-done">✓ Available</span>
+                    <div><h3>Accounts</h3><p>Sign up, log in and log out with cookie sessions, validation and logging.</p></div>
+                </li>
+                <li>
+                    <span class="status status-next">● Next</span>
+                    <div><h3>Facility management</h3><p>Create, list, edit and delete facilities with the full set of form controls.</p></div>
+                </li>
+                <li>
+                    <span class="status status-plan">○ Planned</span>
+                    <div><h3>Network designer, simulation and analysis</h3><p>Drag-and-drop editor, cascade engine, vulnerability report, Recovery Advisor and Design Advisor.</p></div>
+                </li>
+            </ul>
+        </div>
+    </section>
+
+    @if (!isAuthed)
+    {
+        <section class="cta-band">
+            <div class="container cta-inner">
+                <div>
+                    <h2>Ready to try it?</h2>
+                    <p>Create a free account and be first in line when the editor opens.</p>
+                </div>
+                <div class="hero-actions">
+                    <a class="btn btn-light" asp-controller="Account" asp-action="SignUp">Create an account</a>
+                    <a class="btn btn-ghost" asp-controller="Account" asp-action="Login">Log in</a>
+                </div>
+            </div>
+        </section>
+    }
+
+</main>

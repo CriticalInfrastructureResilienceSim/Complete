@@ -1,0 +1,77 @@
+@model FormFieldModel
+@{
+    // One partial for every field so label, input, help and error always sit in the same order.
+    ModelStateEntry? entry = null;
+    ViewData.ModelState.TryGetValue(Model.Name, out entry);
+    var errors = entry?.Errors ?? new ModelErrorCollection();
+    var hasError = errors.Count > 0;
+    var isPassword = Model.InputType == "password";
+    var helpId = Model.Name + "-help";
+    var errorId = Model.Name + "-error";
+    var describedBy = hasError ? helpId + " " + errorId : helpId;
+    var value = isPassword ? string.Empty : Model.Value;
+    var hasIcon = !string.IsNullOrEmpty(Model.Icon);
+}
+<div class="form-field @(hasError ? "has-error" : "")">
+    <label for="@Model.Name">
+        @(Model.Label)
+        @if (Model.Required)
+        {
+            <span class="required" title="Required">*</span>
+        }
+    </label>
+
+    <div class="input-wrap @(hasIcon ? "has-icon" : "") @(isPassword ? "has-toggle" : "")">
+        @if (hasIcon)
+        {
+            <span class="input-icon">@Icons.Svg(Model.Icon!)</span>
+        }
+        <input type="@Model.InputType"
+               id="@Model.Name"
+               name="@Model.Name"
+               value="@value"
+               class="@(hasError ? "is-invalid" : "")"
+               autocomplete="@Model.Autocomplete"
+               aria-required="@(Model.Required ? "true" : "false")"
+               aria-invalid="@(hasError ? "true" : "false")"
+               aria-describedby="@describedBy" />
+        @if (isPassword)
+        {
+            <button type="button" class="toggle-password" data-toggle-password data-target="@Model.Name"
+                    aria-label="Show password" aria-pressed="false" title="Show or hide password">
+                <span class="icon-show">@Icons.Svg("eye")</span>
+                <span class="icon-hide">@Icons.Svg("eye-off")</span>
+            </button>
+        }
+    </div>
+
+    @if (Model.ShowStrength)
+    {
+        <div class="strength" data-strength data-target="@Model.Name" aria-live="polite">
+            <div class="strength-bar"><span></span></div>
+            <p class="strength-text">Password strength: <strong data-strength-label>Not entered yet</strong></p>
+        </div>
+    }
+
+    <p class="field-help" id="@helpId"><span class="label-word">Help:</span> @Model.Help</p>
+
+    @if (hasError)
+    {
+        <div class="field-error" id="@errorId" role="alert">
+            @foreach (var error in errors)
+            {
+                <p><span class="icon" aria-hidden="true">@Icons.Svg("alert")</span><span><span class="label-word">Error:</span> @error.ErrorMessage</span></p>
+            }
+        </div>
+    }
+
+    @if (Model.ShowStrength)
+    {
+        <ul class="pw-rules" data-pw-rules data-target="@Model.Name" aria-label="Password rules">
+            <li data-rule="length"><span class="mark" aria-hidden="true">○</span> 8 to 64 characters</li>
+            <li data-rule="upper"><span class="mark" aria-hidden="true">○</span> One uppercase letter</li>
+            <li data-rule="lower"><span class="mark" aria-hidden="true">○</span> One lowercase letter</li>
+            <li data-rule="digit"><span class="mark" aria-hidden="true">○</span> One number</li>
+        </ul>
+    }
+</div>
