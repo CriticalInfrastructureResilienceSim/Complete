@@ -15,6 +15,10 @@ public class AuthService : IAuthService
     private readonly IAppLogger _logger;
     private readonly AuthOptions _options;
 
+    // A real BCrypt hash of a throwaway string. Checking against it when the email is unknown makes
+    // "no such account" take as long as "wrong password", so response time cannot reveal which emails exist.
+    private static string? _dummyHash;
+
     public AuthService(AppDbContext db, UserValidator validator, IAppLogger logger, IOptions<AuthOptions> options)
     {
         _db = db;
@@ -94,6 +98,7 @@ public class AuthService : IAuthService
         // The same message is shown whether the email or the password was wrong, so nobody can probe for accounts.
         if (user is null || !user.IsActive)
         {
+            BCrypt.Net.BCrypt.Verify(model.Password, GetDummyHash(_options.BcryptWorkFactor));
             _logger.LoginAttempt(email, false, ipAddress, user is null ? "unknown email" : "account disabled");
             validation.Add(string.Empty, ValidationMessages.InvalidCredentials);
             return new LoginResult(false, validation, null);
@@ -103,6 +108,7 @@ public class AuthService : IAuthService
 
         if (user.LockoutEnd is not null && user.LockoutEnd > now)
         {
+            BCrypt.Net.BCrypt.Verify(model.Password, GetDummyHash(_options.BcryptWorkFactor));
             var minutesLeft = (int)Math.Ceiling((user.LockoutEnd.Value - now).TotalMinutes);
             _logger.LoginAttempt(email, false, ipAddress, "account locked");
             validation.Add(string.Empty, ValidationMessages.AccountLocked(minutesLeft));
@@ -134,6 +140,12 @@ public class AuthService : IAuthService
         _logger.LoginAttempt(email, true, ipAddress);
         return new LoginResult(true, validation, user);
     }
+
+    // Called once at startup so the first unknown-email login is not slower than later ones.
+    public static void WarmUp(int workFactor) => GetDummyHash(workFactor);
+
+    private static string GetDummyHash(int workFactor) =>
+        _dummyHash ??= BCrypt.Net.BCrypt.HashPassword("timing-padding-not-a-real-password", workFactor);
 
     private static string NormalizeEmail(string? email) => (email ?? string.Empty).Trim().ToLowerInvariant();
 }

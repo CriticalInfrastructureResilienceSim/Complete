@@ -6,6 +6,7 @@ using Cirs.Web.Validators;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using Serilog.Events;
 
 // Bootstrap logger so a crash during startup still reaches the console.
 Log.Logger = new LoggerConfiguration()
@@ -49,9 +50,19 @@ try
             options.Cookie.Name = "Cirs.Auth";
             options.Cookie.HttpOnly = true;
             options.Cookie.SameSite = SameSiteMode.Lax;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
             options.ExpireTimeSpan = TimeSpan.FromMinutes(authOptions.CookieExpireMinutes);
             options.SlidingExpiration = true;
         });
+
+    // The anti-forgery cookie is HTTPS only as well. Run the app on the https profile (https://localhost:7080).
+    builder.Services.AddAntiforgery(options =>
+    {
+        options.Cookie.Name = "Cirs.Antiforgery";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Strict;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    });
 
     builder.Services.AddDistributedMemoryCache();
     builder.Services.AddSession(options =>
@@ -59,10 +70,23 @@ try
         options.Cookie.Name = "Cirs.Session";
         options.Cookie.HttpOnly = true;
         options.Cookie.IsEssential = true;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         options.IdleTimeout = TimeSpan.FromMinutes(authOptions.SessionIdleMinutes);
     });
 
     var app = builder.Build();
+
+    AuthService.WarmUp(authOptions.BcryptWorkFactor);
+
+    // Request logging sits outside the exception middleware so handled errors are not logged twice.
+    app.UseSerilogRequestLogging(options =>
+        options.GetLevel = (httpContext, _, exception) =>
+            exception is not null || httpContext.Response.StatusCode >= 500 ? LogEventLevel.Error
+            : httpContext.RequestAborted.IsCancellationRequested ? LogEventLevel.Debug
+            : httpContext.Request.Path.StartsWithSegments("/css")
+              || httpContext.Request.Path.StartsWithSegments("/js")
+              || httpContext.Request.Path.StartsWithSegments("/lib") ? LogEventLevel.Verbose
+            : LogEventLevel.Information);
 
     app.UseMiddleware<ExceptionHandlingMiddleware>();
 
@@ -73,7 +97,6 @@ try
 
     app.UseHttpsRedirection();
     app.UseStaticFiles();
-    app.UseSerilogRequestLogging();
     app.UseStatusCodePagesWithReExecute("/Home/Error", "?code={0}");
 
     app.UseRouting();

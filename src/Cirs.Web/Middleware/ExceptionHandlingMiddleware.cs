@@ -19,6 +19,13 @@ public class ExceptionHandlingMiddleware
         {
             await _next(context);
         }
+        catch (Exception ex) when (context.RequestAborted.IsCancellationRequested
+                                   && ex is OperationCanceledException or IOException)
+        {
+            // The visitor closed the tab or navigated away mid-request. Nobody is waiting for a reply and
+            // nothing is broken on our side, so this is a note in the log, not an error.
+            logger.Info($"Request cancelled by the browser: {context.Request.Method} {context.Request.Path}");
+        }
         catch (Exception ex)
         {
             var errorId = Guid.NewGuid().ToString("N")[..8];

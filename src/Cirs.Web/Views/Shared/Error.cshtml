@@ -1,7 +1,8 @@
 @model ErrorViewModel
 @{
     var isNotFound = Model.StatusCode == 404;
-    ViewData["Title"] = isNotFound ? "Page not found" : "Something went wrong";
+    var isExpiredForm = Model.StatusCode == 400;
+    ViewData["Title"] = isNotFound ? "Page not found" : isExpiredForm ? "Form expired" : "Something went wrong";
 }
 
 <section class="card">
@@ -9,6 +10,11 @@
     {
         <h1>Page not found</h1>
         <p>The page you asked for does not exist.</p>
+    }
+    else if (isExpiredForm)
+    {
+        <h1>This form has expired</h1>
+        <p>The page was open for too long or its security token no longer matches. Go back, refresh the page and try again.</p>
     }
     else
     {
